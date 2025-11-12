@@ -11,7 +11,11 @@
         <a class="navbar-brand" href="#">Inspections App</a>
         <div class="d-flex align-items-center">
             <span class="me-3">Hello, {{ request.user.get_full_name }}</span>
-            <a class="btn btn-danger" href="{% url 'logout' %}">Logout</a>
+            <form method="post" action="{% url 'logout' %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Logout</button>
+            </form>
+
         </div>
     </div>
 </nav>

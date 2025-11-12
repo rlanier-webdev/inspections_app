@@ -52,7 +52,7 @@ def dashboard(request):
 
     # ===== INSPECTOR =====
     elif role == AppUser.Role.INSPECTOR:
-        assigned_schools = user.assigned_schools.all()
+        assigned_schools = user.inspection_schools.all()
         inspections = Inspection.objects.filter(inspector=user).order_by("-date")[:5]
 
         context.update({
