@@ -6,6 +6,11 @@ from apps.inspections.models import Inspection
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.forms import AuthenticationForm
 
+def home_redirect(request):
+    if request.user.is_authenticated:
+        return redirect('users:dashboard')
+    return redirect('login')
+
 class CustomLoginView(LoginView):
     template_name = "registration/login.html"
     form_class = AuthenticationForm

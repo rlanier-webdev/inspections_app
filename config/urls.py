@@ -16,10 +16,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from apps.users.views import home_redirect
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("accounts/", include("django.contrib.auth.urls")),
+    path('', home_redirect, name='home'),
     path("users/", include("apps.users.urls")),
     path("inspections/", include("apps.inspections.urls")),
     # path("schools/", include("apps.schools.urls")),
