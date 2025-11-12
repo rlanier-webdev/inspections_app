@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Inspector Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <h1 class="mb-4">Welcome, Inspector {{ user.full_name }}</h1>
+
+  <div class="card mb-4">
+    <div class="card-header bg-primary text-white">Assigned Schools</div>
+    <ul class="list-group list-group-flush">
+      {% for school in user.assigned_schools.all %}
+        <li class="list-group-item">{{ school.name }}</li>
+      {% empty %}
+        <li class="list-group-item text-muted text-center">No schools assigned yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-light">My Upcoming Inspections</div>
+    <ul class="list-group list-group-flush">
+      {% for inspection in user.inspections_as_inspector.all|slice:":5" %}
+        <li class="list-group-item">
+          {{ inspection.school.name }} — {{ inspection.date }}
+          <a href="{% url 'inspections:inspection_detail' inspection.id %}" class="btn btn-sm btn-outline-primary float-end">View</a>
+        </li>
+      {% empty %}
+        <li class="list-group-item text-muted text-center">No inspections scheduled.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

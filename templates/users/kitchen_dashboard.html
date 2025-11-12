@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Kitchen Staff Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <h1 class="mb-4">Welcome, {{ user.full_name }}</h1>
+
+  <div class="card mb-4">
+    <div class="card-header bg-success text-white">My School</div>
+    {% if user.school %}
+      <div class="card-body">
+        <h5>{{ user.school.name }}</h5>
+        <p>{{ user.school.address }}</p>
+      </div>
+    {% else %}
+      <div class="card-body text-muted text-center">No school assigned yet.</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-light">Recent Inspections</div>
+    <ul class="list-group list-group-flush">
+      {% for inspection in user.school.inspections.all|slice:":5" %}
+        <li class="list-group-item">
+          {{ inspection.date }} — {{ inspection.get_status_display }}
+          <a href="{% url 'inspections:inspection_detail' inspection.id %}" class="btn btn-sm btn-outline-primary float-end">View</a>
+        </li>
+      {% empty %}
+        <li class="list-group-item text-muted text-center">No inspections available.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

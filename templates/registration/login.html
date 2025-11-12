@@ -1,33 +1,32 @@
-{% extends "base.html" %}
-{% load widget_tweaks %}
+{% extends "base_guest.html" %}
 
 {% block title %}Login{% endblock %}
 
 {% block content %}
-<div class="max-w-md mx-auto bg-white p-6 rounded-xl shadow">
-    <h2 class="text-2xl font-bold mb-4 text-center">Sign In</h2>
-
-    {% if form.errors %}
-        <div class="bg-red-100 text-red-700 p-3 rounded mb-4">
-            Invalid username or password. Please try again.
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h2 class="text-center mb-4">Sign In</h2>
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        Invalid username or password.
+                    </div>
+                {% endif %}
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
+                        {{ form.username }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.password.id_for_label }}" class="form-label">Password</label>
+                        {{ form.password }}
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Login</button>
+                </form>
+            </div>
         </div>
-    {% endif %}
-
-    <form method="post" class="space-y-4">
-        {% csrf_token %}
-        <div>
-            <label for="id_username" class="block font-medium">Username</label>
-            {{ form.username|add_class:"w-full border rounded p-2" }}
-        </div>
-        <div>
-            <label for="id_password" class="block font-medium">Password</label>
-            {{ form.password|add_class:"w-full border rounded p-2" }}
-        </div>
-        <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">Login</button>
-    </form>
-
-    <p class="text-center text-sm mt-4">
-        <a href="{% url 'password_reset' %}" class="text-blue-600 hover:underline">Forgot your password?</a>
-    </p>
+    </div>
 </div>
 {% endblock %}
