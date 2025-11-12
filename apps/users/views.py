@@ -17,7 +17,6 @@ class CustomLoginView(LoginView):
         return form
 
 
-
 @login_required
 def dashboard(request):
     user = request.user.appuser

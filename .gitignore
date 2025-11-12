@@ -1,15 +1,3 @@
-apps/checklists/__pycache__/
-apps/inspections/__pycache__/
-apps/schools/__pycache__/
-
-apps/schools/migrations/
-apps/inspections/migrations/
-apps/checklists/migrations/
-
 db.sqlite3
-
-config/settings/__pycache__/
-config/__pycache__/
-
 venv/
 .env
