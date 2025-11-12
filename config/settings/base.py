@@ -18,10 +18,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    "widget_tweaks",
+
     # Local apps
     'apps.users',
     'apps.schools',
     'apps.inspections',
+    'apps.checklists',
 ]
 
 MIDDLEWARE = [
@@ -71,3 +74,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_REDIRECT_URL = "/inspections/"
+LOGOUT_REDIRECT_URL = "/accounts/login/"
+LOGIN_URL = "/accounts/login/"

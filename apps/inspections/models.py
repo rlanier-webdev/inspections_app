@@ -1,3 +1,60 @@
 from django.db import models
+from apps.users.models import AppUser
+from apps.schools.models import School
+from apps.checklists.models import Checklist, ChecklistItem
 
-# Create your models here.
+
+class Inspection(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        COMPLETED = "COMPLETED", "Completed"
+        FAILED = "FAILED", "Failed"
+        PASSED = "PASSED", "Passed"
+
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="inspections")
+    inspector = models.ForeignKey(
+        AppUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="inspections_as_inspector",
+        limit_choices_to={'role': AppUser.Role.INSPECTOR}
+    )
+    manager = models.ForeignKey(
+        AppUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="inspections_as_manager",
+        limit_choices_to={'role': AppUser.Role.MANAGER}
+    )
+    checklist = models.ForeignKey(
+        Checklist,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="inspections"
+    )
+    date = models.DateField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date']
+        verbose_name = "Inspection"
+        verbose_name_plural = "Inspections"
+
+    def __str__(self):
+        return f"{self.school.name} - {self.date} ({self.get_status_display()})"
+
+
+class InspectionItem(models.Model):
+    inspection = models.ForeignKey(Inspection, on_delete=models.CASCADE, related_name="inspection_items")
+    checklist_item = models.ForeignKey(ChecklistItem, on_delete=models.CASCADE)
+    passed = models.BooleanField(default=False)
+    notes = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.inspection} - {self.checklist_item.text}"

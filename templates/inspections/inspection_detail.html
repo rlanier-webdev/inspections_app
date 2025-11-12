@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Inspection Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">{{ inspection.school.name }} – {{ inspection.date }}</h1>
+
+    <div class="mb-3">
+        <p><strong>Inspector:</strong> {{ inspection.inspector.user.get_full_name|default:"—" }}</p>
+        <p><strong>Manager:</strong> {{ inspection.manager.user.get_full_name|default:"—" }}</p>
+        <p><strong>Status:</strong>
+            {% if inspection.status == 'PASSED' %}
+                <span class="badge bg-success">Passed</span>
+            {% elif inspection.status == 'FAILED' %}
+                <span class="badge bg-danger">Failed</span>
+            {% elif inspection.status == 'PENDING' %}
+                <span class="badge bg-warning text-dark">Pending</span>
+            {% else %}
+                <span class="badge bg-secondary">{{ inspection.get_status_display }}</span>
+            {% endif %}
+        </p>
+        <p><strong>Notes:</strong> {{ inspection.notes|default:"No notes" }}</p>
+    </div>
+
+    <h2 class="h5 mt-4 mb-2">Checklist Items</h2>
+    <table class="table table-bordered table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>Item</th>
+                <th>Passed</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in inspection.inspection_items.all %}
+            <tr>
+                <td>{{ item.checklist_item.text }}</td>
+                <td class="text-center">
+                    {% if item.passed %}✅{% else %}❌{% endif %}
+                </td>
+                <td>{{ item.notes|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" class="text-center text-muted">No checklist items yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{% url 'inspections:inspection_list' %}" class="btn btn-secondary mt-3">Back to list</a>
+</div>
+{% endblock %}
