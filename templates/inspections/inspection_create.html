@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}New Inspection{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Create Inspection</h1>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">School</label>
+                        {{ form.school }}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Inspector</label>
+                        {{ form.inspector }}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Checklist</label>
+                        {{ form.checklist }}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Date</label>
+                        {{ form.date }}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Status</label>
+                        {{ form.status }}
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">Create Inspection</button>
+                    <a href="{% url 'inspections:inspection_list' %}" class="btn btn-secondary ms-2">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Perform Inspection{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">
+        Perform Inspection – {{ inspection.school.name }}
+    </h1>
+
+    {% if is_completed %}
+        <div class="alert alert-info">
+            This inspection has been completed and is read-only.
+        </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        {{ formset.management_form }}
+
+        <table class="table table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 40%">Checklist Item</th>
+                    <th style="width: 10%">Pass?</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for form in formset %}
+                <tr>
+                    <td>{{ form.instance.checklist_item.text }}</td>
+                    
+                    <td class="text-center">
+                        {{ form.passed }}
+                    </td>
+                    
+                    <td>
+                        {{ form.notes }}
+                    </td>
+
+                    {{ form.id }}  <!-- required for formset -->
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if not is_completed %}
+            <div class="mt-4">
+                <button type="submit" name="save_draft" class="btn btn-secondary">
+                    Save as Draft
+                </button>
+
+                <button type="submit" name="complete_inspection" class="btn btn-primary ms-2">
+                    Complete Inspection
+                </button>
+
+                <a href="{% url 'inspections:inspection_detail' inspection.pk %}"
+                   class="btn btn-outline-dark ms-2">
+                    Cancel
+                </a>
+            </div>
+        {% else %}
+            <a href="{% url 'inspections:inspection_detail' inspection.pk %}"
+               class="btn btn-primary">Back to Inspection</a>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

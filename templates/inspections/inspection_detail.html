@@ -47,7 +47,18 @@
             {% endfor %}
         </tbody>
     </table>
+    <div class="d-flex align-items-center mt-5">
+        <a href="{% url 'inspections:inspection_list' %}" class="btn btn-secondary me-3">Back to list</a>
 
-    <a href="{% url 'inspections:inspection_list' %}" class="btn btn-secondary mt-3">Back to list</a>
+        {% if request.user.appuser.role == "INSPECTOR" and inspection.inspector == request.user.appuser %}
+            {% if inspection.status == "PENDING" %}
+                <a href="{% url 'inspections:inspection_perform' inspection.pk %}"
+                class="btn btn-primary">
+                    Perform Inspection
+                </a>
+            {% endif %}
+        {% endif %}
+    </div>       
 </div>
+
 {% endblock %}
