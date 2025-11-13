@@ -4,7 +4,7 @@ from django.core.exceptions import PermissionDenied
 from .forms import InspectionForm
 from apps.users.models import AppUser
 from django.core.paginator import Paginator
-from .models import Inspection
+from .models import Inspection, CorrectiveAction
 from apps.schools.models import School
 from .forms import InspectionItemFormSet
 
@@ -160,11 +160,32 @@ def inspection_perform(request, pk):
 
             # Determine status
             if "complete_inspection" in request.POST:
-                failed_items = inspection.inspection_items.filter(passed=False).exists()
-                if failed_items:
+                failed_items = inspection.inspection_items.filter(passed=False)
+
+                if failed_items.exists():
                     inspection.status = Inspection.Status.FAILED
+
+                    # AUTO-CREATE CORRECTIVE ACTIONS
+                    for item in failed_items:
+                        # Decide who gets assigned
+                        # Prefer Kitchen Staff → else Manager → else None
+                        school = inspection.school
+
+                        assigned_user = (
+                            school.kitchen_staff.first()
+                            or school.managers.first()
+                            or None
+                        )
+
+                        CorrectiveAction.objects.create(
+                            inspection_item=item,
+                            assigned_to=assigned_user,
+                            description=f"Correct issue: {item.checklist_item.text}"
+                        )
+
                 else:
                     inspection.status = Inspection.Status.PASSED
+
             else:
                 inspection.status = Inspection.Status.PENDING  # Save as draft
 
@@ -179,4 +200,67 @@ def inspection_perform(request, pk):
         "inspection": inspection,
         "formset": formset,
         "is_completed": is_completed,
+    })
+
+
+@login_required
+def corrective_action_list(request):
+    user = request.user.appuser
+
+    if user.role == AppUser.Role.ADMIN:
+        actions = CorrectiveAction.objects.all()
+
+    elif user.role == AppUser.Role.MANAGER:
+        actions = CorrectiveAction.objects.filter(
+            assigned_to__in=request.user.appuser.managed_schools.values_list("kitchen_staff", flat=True)
+        ) | CorrectiveAction.objects.filter(assigned_to=user)
+
+    elif user.role == AppUser.Role.KITCHEN:
+        actions = CorrectiveAction.objects.filter(assigned_to=user)
+
+    elif user.role == AppUser.Role.INSPECTOR:
+        # Inspectors only see actions for their inspections
+        actions = CorrectiveAction.objects.filter(
+            inspection_item__inspection__inspector=user
+        )
+
+    else:
+        actions = CorrectiveAction.objects.none()
+
+    return render(request, "inspections/corrective_action_list.html", {
+        "actions": actions,
+    })
+
+
+@login_required
+def corrective_action_detail(request, pk):
+    action = get_object_or_404(CorrectiveAction, pk=pk)
+
+    # --- PERMISSIONS ---
+    if request.user.is_superuser:
+        allowed = True
+    else:
+        try:
+            user_profile = request.user.appuser
+        except AppUser.DoesNotExist:
+            raise PermissionDenied("You do not have an AppUser profile.")
+
+        allowed = (
+            user_profile.role == AppUser.Role.ADMIN or
+            user_profile.role == AppUser.Role.MANAGER or
+            user_profile == action.assigned_to
+        )
+
+    if not allowed:
+        raise PermissionDenied("You do not have permission to view this action.")
+
+    # --- HANDLE POST ---
+    if request.method == "POST":
+        action.status = CorrectiveAction.Status.RESOLVED
+        action.save()
+        return redirect("inspections:corrective_action_list")
+
+    # --- RENDER ---
+    return render(request, "inspections/corrective_action_detail.html", {
+        "action": action,
     })

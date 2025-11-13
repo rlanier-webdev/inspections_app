@@ -58,3 +58,38 @@ class InspectionItem(models.Model):
 
     def __str__(self):
         return f"{self.inspection} - {self.checklist_item.text}"
+    
+
+class CorrectiveAction(models.Model):
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Open"
+        IN_PROGRESS = "IN_PROGRESS", "In Progress"
+        RESOLVED = "RESOLVED", "Resolved"
+
+    inspection_item = models.ForeignKey(
+        InspectionItem,
+        on_delete=models.CASCADE,
+        related_name="corrective_actions"
+    )
+    assigned_to = models.ForeignKey(
+        AppUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="corrective_actions"
+    )
+    description = models.TextField()
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.OPEN
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Action for {self.inspection_item.checklist_item.text}"
+    
+    class Meta:
+        verbose_name = "Corrective Action"
+        verbose_name_plural = "Corrective Actions"

@@ -58,6 +58,13 @@
                 </a>
             {% endif %}
         {% endif %}
+
+        {% if inspection.status == "FAILED" %}
+            <a href="{% url 'inspections:corrective_action_list' %}" class="btn btn-warning">
+                View Corrective Actions
+            </a>
+        {% endif %}
+
     </div>       
 </div>
 

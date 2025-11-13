@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Corrective Action{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Corrective Action</h1>
+
+<div class="card">
+    <div class="card-body">
+        <h5>{{ action.inspection_item.checklist_item.text }}</h5>
+        <p>{{ action.description }}</p>
+
+        <p><strong>Assigned To:</strong> {{ action.assigned_to.full_name }}</p>
+        <p><strong>Status:</strong> {{ action.get_status_display }}</p>
+
+        {% if action.status != "RESOLVED" %}
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">Mark as Resolved</button>
+        </form>
+        {% else %}
+            <span class="badge bg-success">Resolved</span>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
