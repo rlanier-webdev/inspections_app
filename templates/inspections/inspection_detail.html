@@ -6,14 +6,14 @@
 
     <h1 class="mb-4">Inspection Details</h1>
 
-    <!-- ===== INSPECTION SUMMARY ===== -->
+    <!-- Summary -->
     <div class="card mb-4">
         <div class="card-body">
-            <h4 class="mb-1">{{ inspection.school.name }}</h4>
+            <h4>{{ inspection.school.name }}</h4>
 
-            <p class="mb-1"><strong>Date:</strong> {{ inspection.date }}</p>
+            <p><strong>Date:</strong> {{ inspection.date }}</p>
 
-            <p class="mb-1">
+            <p>
                 <strong>Status:</strong>
                 <span class="badge 
                     {% if inspection.status == 'PASSED' %}bg-success
@@ -25,29 +25,37 @@
                     {{ inspection.get_status_display }}
                 </span>
             </p>
-
-            <!-- Inspector & Manager Info -->
-            <p class="mb-0">
-                <strong>Inspector:</strong>
-                {{ inspection.inspector.full_name|default:"—" }} <br>
-
-                <strong>Manager:</strong>
-                {{ inspection.manager.full_name|default:"—" }}
-            </p>
         </div>
     </div>
 
-    <!-- ===== PERFORM INSPECTION BUTTON ===== -->
-    {% if inspection.status == "PENDING" %}
-        {% if request.user.appuser.role == "ADMIN" or inspection.inspector == request.user.appuser %}
+    <!-- Perform Inspection Button (Inspector Only) -->
+    {% if user.appuser.role == "INSPECTOR" and inspection.inspector_id == user.appuser.id %}
+
+        {% if inspection.status == "PENDING" %}
             <a href="{% url 'inspections:inspection_perform' inspection.pk %}"
-               class="btn btn-primary mb-4">
+                class="btn btn-primary mb-3">
                 Perform Inspection
             </a>
+
+        {% elif inspection.status == "FAILED" and not unresolved_actions %}
+            <!-- Optional: allow inspector to redo full inspection once all CA's resolved -->
+            <a href="{% url 'inspections:inspection_perform' inspection.pk %}"
+                class="btn btn-outline-primary mb-3">
+                Perform Inspection Again
+            </a>
         {% endif %}
+
     {% endif %}
 
-    <!-- ===== CHECKLIST ITEMS ===== -->
+    <!-- Reinspect All Button -->
+    {% if unresolved_actions %}
+        <a href="{% url 'inspections:inspection_perform' inspection.pk %}?reinspect_all=1"
+           class="btn btn-success mb-3">
+            Reinspect All Failed Items ({{ unresolved_actions.count }})
+        </a>
+    {% endif %}
+
+    <!-- Checklist Items -->
     <div class="card">
         <div class="card-header bg-light">
             <strong>Checklist Items</strong>
@@ -56,27 +64,25 @@
         <ul class="list-group list-group-flush">
             {% for item in inspection.inspection_items.all %}
             {% with action=item.corrective_actions.first %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
 
-                <!-- Left Column: Checklist Item + Status -->
-                <div>
-                    <strong>{{ item.checklist_item.text }}</strong>
-                    <br>
+            <li class="list-group-item d-flex justify-content-between align-items-start">
 
-                    <!-- === PASS / FAIL / PENDING DISPLAY === -->
+                <div class="flex-grow-1">
+
+                    <strong>{{ item.checklist_item.text }}</strong><br>
+
+                    <!-- Pass/Fail/Pending -->
                     {% if inspection.status == 'PENDING' %}
                         <span class="badge bg-secondary">Awaiting Inspection</span>
                     {% else %}
-                        {% if item.passed is True %}
+                        {% if item.passed %}
                             <span class="badge bg-success">Passed</span>
-                        {% elif item.passed is False %}
-                            <span class="badge bg-danger">Failed</span>
                         {% else %}
-                            <span class="badge bg-secondary">Not Checked</span>
+                            <span class="badge bg-danger">Failed</span>
                         {% endif %}
                     {% endif %}
 
-                    <!-- === CORRECTIVE ACTION STATUS === -->
+                    <!-- Corrective Action Badges -->
                     {% if action %}
                         {% if action.status == "OPEN" %}
                             <span class="badge bg-danger ms-2">Corrective Action Required</span>
@@ -90,33 +96,30 @@
                     {% endif %}
                 </div>
 
-                <!-- Right Column: Action Buttons -->
                 <div class="text-end">
 
-                    <!-- View Corrective Action -->
                     {% if action %}
+                        <!-- View Action -->
                         <a href="{% url 'inspections:corrective_action_detail' action.pk %}"
                            class="btn btn-sm btn-outline-primary mb-1">
                             View Action
                         </a>
                     {% endif %}
 
-                    <!-- Reinspect Button -->
                     {% if action and action.status == "AWAITING_REINSPECTION" %}
-                        {% if request.user.appuser.role == "ADMIN" or inspection.inspector == request.user.appuser %}
-                            <a href="{% url 'inspections:inspection_perform' inspection.pk %}?action={{ action.pk }}"
-                               class="btn btn-sm btn-success">
-                                Reinspect
-                            </a>
-                        {% endif %}
+                        <!-- Single-item Reinspection -->
+                        <a href="{% url 'inspections:inspection_perform' inspection.pk %}?action={{ action.pk }}"
+                           class="btn btn-sm btn-success">
+                            Reinspect
+                        </a>
                     {% endif %}
                 </div>
 
             </li>
+
             {% endwith %}
             {% endfor %}
         </ul>
     </div>
-
 </div>
 {% endblock %}

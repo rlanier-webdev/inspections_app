@@ -8,22 +8,31 @@
         Perform Inspection – {{ inspection.school.name }}
     </h1>
 
+    {# ----------------------- ALERTS ----------------------- #}
+
     {% if action_id %}
         <div class="alert alert-warning">
-            <strong>Reinspection Mode:</strong> You are reinspecting a corrective action item.
+            <strong>Reinspection Mode:</strong> You are reinspecting a specific corrective action item.
         </div>
     {% endif %}
 
-    {% if is_completed %}
+    {% if reinspect_all %}
+        <div class="alert alert-info">
+            <strong>Reinspection Mode:</strong> You are reinspecting all failed items for this inspection.
+        </div>
+    {% endif %}
+
+    {% if is_completed and not action_id and not reinspect_all %}
         <div class="alert alert-info">
             This inspection has been completed and is read-only.
         </div>
     {% endif %}
 
-    <!-- FORM -->
+    {# ----------------------- FORM ----------------------- #}
+
     <form method="post"
-          action="{% url 'inspections:inspection_perform' inspection.pk %}{% if action_id %}?action={{ action_id }}{% endif %}">
-        
+          action="{% url 'inspections:inspection_perform' inspection.pk %}{% if action_id %}?action={{ action_id }}{% elif reinspect_all %}?reinspect_all=1{% endif %}">
+
         {% csrf_token %}
         {{ formset.management_form }}
 
@@ -39,7 +48,9 @@
             <tbody>
                 {% for form in formset %}
                 <tr>
-                    <td>{{ form.instance.checklist_item.text }}</td>
+                    <td class="fw-semibold">
+                        {{ form.instance.checklist_item.text }}
+                    </td>
 
                     <td class="text-center">
                         {{ form.passed }}
@@ -49,23 +60,24 @@
                         {{ form.notes }}
                     </td>
 
-                    {{ form.id }}
+                    {{ form.id }}  {# required hidden field #}
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
-        <!-- BUTTONS -->
-        {% if not is_completed %}
+        {# ----------------------- BUTTONS ----------------------- #}
 
-            {% if action_id %}
-                <!-- Reinspection Button -->
+        {% if not is_completed or action_id or reinspect_all %}
+
+            {% if action_id or reinspect_all %}
+                <!-- Reinspection submission -->
                 <button type="submit" class="btn btn-success">
                     Submit Reinspection
                 </button>
 
             {% else %}
-                <!-- Normal Inspection Buttons -->
+                <!-- Normal inspection mode -->
                 <button type="submit" name="save_draft" class="btn btn-secondary">
                     Save as Draft
                 </button>
@@ -81,11 +93,16 @@
             </a>
 
         {% else %}
+
+            <!-- Completed inspection read-only -->
             <a href="{% url 'inspections:inspection_detail' inspection.pk %}"
                class="btn btn-primary">
                 Back to Inspection
             </a>
+
         {% endif %}
+
     </form>
+
 </div>
 {% endblock %}

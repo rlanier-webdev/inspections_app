@@ -2,32 +2,57 @@
 {% block title %}Corrective Action{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">Corrective Action</h1>
+<div class="container-fluid">
+    <h1 class="mb-4">Corrective Action</h1>
 
-<div class="card">
-    <div class="card-body">
-        <h5>{{ action.inspection_item.checklist_item.text }}</h5>
-        <p>{{ action.description }}</p>
+    <div class="card">
+        <div class="card-body">
 
-        <p><strong>Assigned To:</strong> {{ action.assigned_to.full_name }}</p>
-        <p><strong>Status:</strong> {{ action.get_status_display }}</p>
+            <h5>{{ action.inspection_item.checklist_item.text }}</h5>
+            <p>{{ action.description }}</p>
 
-        {% if action.status != "RESOLVED" %}
-        <form method="post">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-success">Mark as Resolved</button>
-        </form>
-        {% else %}
-            <span class="badge bg-success">Resolved</span>
-        {% endif %}
-        {% if action.status == "RESOLVED" %}
-            <form method="post" action="{% url 'inspections:reinspect_action' action.pk %}">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-primary mt-3">Reinspect</button>
-            </form>
-        {% endif %}
+            <p><strong>Assigned To:</strong> {{ action.assigned_to.full_name }}</p>
 
+            <p>
+                <strong>Status:</strong>
+                <span class="badge
+                    {% if action.status == 'OPEN' %} bg-danger
+                    {% elif action.status == 'IN_PROGRESS' %} bg-warning text-dark
+                    {% elif action.status == 'AWAITING_REINSPECTION' %} bg-info text-dark
+                    {% elif action.status == 'REINSPECTED' %} bg-success
+                    {% elif action.status == 'RESOLVED' %} bg-success
+                    {% endif %}
+                ">
+                    {{ action.get_status_display }}
+                </span>
+            </p>
+
+            <hr>
+
+            <!-- Only show resolve button when appropriate -->
+            {% if action.status == "OPEN" or action.status == "IN_PROGRESS" %}
+                <form method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">
+                        Mark as Resolved
+                    </button>
+                </form>
+
+            {% elif action.status == "REINSPECTED" %}
+                <span class="text-success fw-bold">This action has been reinspected.</span>
+
+            {% elif action.status == "RESOLVED" %}
+                <span class="text-success fw-bold">This action is resolved.</span>
+            {% endif %}
+
+            <hr>
+
+            <a href="{% url 'inspections:corrective_action_list' %}"
+               class="btn btn-outline-secondary">
+                Back to Actions
+            </a>
+
+        </div>
     </div>
 </div>
-
 {% endblock %}

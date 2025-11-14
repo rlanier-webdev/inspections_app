@@ -114,14 +114,35 @@ def inspection_list(request):
 @login_required
 def inspection_detail(request, pk):
     inspection = get_object_or_404(
-        Inspection.objects.select_related('school', 'inspector', 'manager', 'checklist')
-        .prefetch_related('inspection_items__checklist_item'),
+        Inspection.objects.select_related("school", "inspector", "manager", "checklist")
+        .prefetch_related("inspection_items__checklist_item"),
         pk=pk
     )
+
+    # Get corrective actions tied to this inspection
+    corrective_actions = CorrectiveAction.objects.filter(
+        inspection_item__inspection=inspection
+    ).select_related(
+        "inspection_item__checklist_item",
+        "assigned_to"
+    )
+
+    # Failed/unresolved CA’s for “Reinspect All” button
+    unresolved_actions = corrective_actions.filter(
+        status__in=[
+            CorrectiveAction.Status.OPEN,
+            CorrectiveAction.Status.IN_PROGRESS,
+            CorrectiveAction.Status.AWAITING_REINSPECTION,
+        ]
+    )
+
     context = {
-        'inspection': inspection
+        "inspection": inspection,
+        "corrective_actions": corrective_actions,
+        "unresolved_actions": unresolved_actions,
     }
-    return render(request, 'inspections/inspection_detail.html', context)
+    return render(request, "inspections/inspection_detail.html", context)
+
 
 
 @login_required
@@ -144,34 +165,56 @@ def inspection_perform(request, pk):
         raise PermissionDenied("This inspection is not assigned to you.")
 
     # -------------------------------------------------
-    # 2. REINSPECTION MODE? (Only show one item)
+    # 2. Detect reinspection type
     # -------------------------------------------------
-    action_id = request.GET.get("action")  # ex: ...perform/5/?action=12
+    action_id = request.GET.get("action")           # reinspect ONE item
+    reinspect_all = request.GET.get("reinspect_all")  # reinspect all failed items
 
+    # Which items should appear in the form?
     if action_id:
-        # Only list the one item tied to corrective action
         inspection_items_qs = inspection.inspection_items.filter(
             corrective_actions__pk=action_id
         )
+    elif reinspect_all:
+        # Only items tied to unresolved corrective actions
+        inspection_items_qs = inspection.inspection_items.filter(
+            corrective_actions__status__in=[
+                CorrectiveAction.Status.OPEN,
+                CorrectiveAction.Status.IN_PROGRESS,
+                CorrectiveAction.Status.AWAITING_REINSPECTION,
+            ]
+        )
     else:
-        # Normal inspection: all items
+        # Normal inspection mode
         inspection_items_qs = inspection.inspection_items.all()
 
-    # Completed inspection normally = read-only
-    is_completed = inspection.status in (
-        Inspection.Status.PASSED,
-        Inspection.Status.FAILED,
-        Inspection.Status.COMPLETED,
+    # -------------------------------------------------
+    # 3. Determine if inspection should be read-only
+    # -------------------------------------------------
+    has_unresolved_actions = CorrectiveAction.objects.filter(
+        inspection_item__inspection=inspection,
+        status__in=[
+            CorrectiveAction.Status.OPEN,
+            CorrectiveAction.Status.IN_PROGRESS,
+            CorrectiveAction.Status.AWAITING_REINSPECTION,
+        ]
+    ).exists()
+
+    # Completed = PASSED or COMPLETED, but inspector can redo failed inspections
+    is_completed = (
+        inspection.status in [Inspection.Status.PASSED, Inspection.Status.COMPLETED]
+        and not has_unresolved_actions
     )
 
-    # BUT if in reinspection mode, always allow edits
-    if action_id:
+    # NEVER lock in reinspection mode
+    if action_id or reinspect_all:
         is_completed = False
 
+    # Formset
     ItemFormSet = InspectionItemFormSet(queryset=inspection_items_qs)
 
     # -------------------------------------------------
-    # 3. PROCESS POST
+    # 4. Process POST
     # -------------------------------------------------
     if request.method == "POST":
         formset = InspectionItemFormSet(request.POST, queryset=inspection_items_qs)
@@ -179,53 +222,53 @@ def inspection_perform(request, pk):
         if formset.is_valid():
             formset.save()
 
-            # ---------------------------------------------
-            # REINSPECTION MODE LOGIC
-            # ---------------------------------------------
-            if action_id:
-                action = get_object_or_404(CorrectiveAction, pk=action_id)
-                item = action.inspection_item
-                item.refresh_from_db()
+            # -----------------------------------------
+            # REINSPECTION (single or bulk)
+            # -----------------------------------------
+            if action_id or reinspect_all:
 
-                # Update the corrective action status
-                if item.passed:
-                    action.status = CorrectiveAction.Status.REINSPECTED
-                else:
-                    action.status = CorrectiveAction.Status.OPEN
-
-                action.save()
-
-                # Now evaluate the entire inspection
-                all_actions = CorrectiveAction.objects.filter(
-                    inspection_item__inspection=inspection
+                actions = CorrectiveAction.objects.filter(
+                    inspection_item__in=inspection_items_qs
                 )
 
-                unresolved = all_actions.filter(
+                for action in actions:
+                    # Update action based on pass/fail result
+                    if action.inspection_item.passed:
+                        action.status = CorrectiveAction.Status.REINSPECTED
+                    else:
+                        action.status = CorrectiveAction.Status.OPEN
+                    action.save()
+
+                # Reevaluate inspection status
+                still_unresolved = CorrectiveAction.objects.filter(
+                    inspection_item__inspection=inspection,
                     status__in=[
                         CorrectiveAction.Status.OPEN,
                         CorrectiveAction.Status.IN_PROGRESS,
-                        CorrectiveAction.Status.AWAITING_REINSPECTION
+                        CorrectiveAction.Status.AWAITING_REINSPECTION,
                     ]
-                )
+                ).exists()
 
                 inspection.status = (
-                    Inspection.Status.FAILED if unresolved.exists()
+                    Inspection.Status.FAILED if still_unresolved
                     else Inspection.Status.PASSED
                 )
                 inspection.save()
 
                 return redirect("inspections:inspection_detail", pk=inspection.pk)
 
-            # ---------------------------------------------
-            # STANDARD INSPECTION COMPLETION LOGIC
-            # ---------------------------------------------
+            # -----------------------------------------
+            # NORMAL INSPECTION FLOW
+            # -----------------------------------------
             if "complete_inspection" in request.POST:
                 failed_items = inspection.inspection_items.filter(passed=False)
 
                 if failed_items.exists():
                     inspection.status = Inspection.Status.FAILED
+
                     school = inspection.school
 
+                    # Create corrective actions
                     for item in failed_items:
                         assigned_user = (
                             school.kitchen_staff.first()
@@ -237,32 +280,28 @@ def inspection_perform(request, pk):
                             inspection_item=item,
                             assigned_to=assigned_user,
                             description=f"Correct issue: {item.checklist_item.text}",
-                            status=CorrectiveAction.Status.OPEN
                         )
-
                 else:
                     inspection.status = Inspection.Status.PASSED
-
             else:
-                inspection.status = Inspection.Status.PENDING  # draft save
+                inspection.status = Inspection.Status.PENDING
 
             inspection.save()
-
             return redirect("inspections:inspection_detail", pk=inspection.pk)
 
     else:
         formset = ItemFormSet
 
     # -------------------------------------------------
-    # 4. RENDER PAGE
+    # 5. Render Template
     # -------------------------------------------------
     return render(request, "inspections/inspection_perform.html", {
         "inspection": inspection,
         "formset": formset,
         "is_completed": is_completed,
         "action_id": action_id,
+        "reinspect_all": reinspect_all,
     })
-
 
 
 
