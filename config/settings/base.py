@@ -1,5 +1,5 @@
 from pathlib import Path
-import environ
+import environ, os
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "widget_tweaks",
 
     # Local apps
+    'apps.core',
     'apps.users',
     'apps.schools',
     'apps.inspections',
@@ -73,8 +74,51 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = '/users/dashboard/'
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 LOGIN_URL = "/accounts/login/"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+
+    "formatters": {
+        "verbose": {
+            "format": "[{levelname}] {asctime} | {name} | {message}",
+            "style": "{",
+        },
+    },
+
+    "handlers": {
+        "error_file": {
+            "level": "ERROR",
+            "class": "logging.FileHandler",
+            "filename": os.path.join(BASE_DIR, "config/logs", "errors.log"),
+            "formatter": "verbose",
+        },
+        "console": {
+            "level": "ERROR",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+
+    "loggers": {
+        "django.request": {        # logs 500 errors automatically
+            "handlers": ["error_file", "console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "core.errors": {           # custom logger
+            "handlers": ["error_file", "console"],
+            "level": "ERROR",
+            "propagate": False,
+        }
+    },
+}

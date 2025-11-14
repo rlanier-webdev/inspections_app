@@ -1,0 +1,16 @@
+{% extends request.user.is_authenticated|yesno:"base.html,base_guest.html" %}
+{% load static %}
+{% block title %}Forbidden{% endblock %}
+
+
+{% block content %}
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 70vh;">
+<div class="text-center">
+<h1 class="display-4 text-warning mb-3">Access Denied</h1>
+<p class="lead text-muted mb-4">You don't have permission to view this page.</p>
+
+
+<a href="{% url 'users:dashboard' %}" class="btn btn-warning">Return to Dashboard</a>
+</div>
+</div>
+{% endblock %}

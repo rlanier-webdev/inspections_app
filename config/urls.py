@@ -24,6 +24,8 @@ urlpatterns = [
     path('', home_redirect, name='home'),
     path("users/", include("apps.users.urls")),
     path("inspections/", include("apps.inspections.urls")),
-    # path("schools/", include("apps.schools.urls")),
+    path("schools/", include("apps.schools.urls")),
     # path("checklists/", include("apps.checklists.urls")),
 ]
+
+handler404 = "apps.core.views.custom_404"

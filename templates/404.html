@@ -1,0 +1,30 @@
+{% load static %}
+{% extends request.user.is_authenticated|yesno:"base.html,base_guest.html" %}
+{% block title %}Page Not Found{% endblock %}
+
+{% block content %}
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 70vh;">
+    <div class="text-center">
+
+        <h1 class="display-4 text-danger mb-3">Oops! Page Not Found</h1>
+        <p class="lead text-muted mb-4">
+            The page you're looking for doesn’t exist or may have been removed.
+        </p>
+
+        {% if request.path.startswith('/inspections/') %}
+            <p class="text-muted">
+                It looks like this inspection no longer exists.
+            </p>
+        {% endif %}
+
+        <a href="{% url 'users:dashboard' %}" class="btn btn-primary mt-3">
+            Return to Dashboard
+        </a>
+
+        <a href="{% url 'inspections:inspection_list' %}" class="btn btn-outline-secondary mt-3">
+            View All Inspections
+        </a>
+
+    </div>
+</div>
+{% endblock %}

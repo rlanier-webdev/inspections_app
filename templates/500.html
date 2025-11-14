@@ -1,0 +1,16 @@
+{% load static %}
+{% extends request.user.is_authenticated|yesno:"base.html,base_guest.html" %}
+{% block title %}Server Error{% endblock %}
+
+
+{% block content %}
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 70vh;">
+<div class="text-center">
+<h1 class="display-4 text-danger mb-3">Server Error</h1>
+<p class="lead text-muted mb-4">Something went wrong on our end.</p>
+
+
+<a href="{% url 'users:dashboard' %}" class="btn btn-danger">Return to Dashboard</a>
+</div>
+</div>
+{% endblock %}

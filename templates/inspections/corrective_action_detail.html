@@ -20,6 +20,13 @@
         {% else %}
             <span class="badge bg-success">Resolved</span>
         {% endif %}
+        {% if action.status == "RESOLVED" %}
+            <form method="post" action="{% url 'inspections:reinspect_action' action.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary mt-3">Reinspect</button>
+            </form>
+        {% endif %}
+
     </div>
 </div>
 

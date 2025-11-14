@@ -3,31 +3,99 @@
 
 {% block content %}
 <div class="container-fluid">
-  <h1 class="mb-4">Welcome, Inspector {{ user.full_name }}</h1>
 
+  <h1 class="mb-4">Welcome, {{ user.full_name }}</h1>
+
+  <!-- ===== MY ASSIGNED SCHOOLS ===== -->
   <div class="card mb-4">
-    <div class="card-header bg-primary text-white">Assigned Schools</div>
+    <div class="card-header bg-primary text-white">My Assigned Schools</div>
     <ul class="list-group list-group-flush">
-      {% for school in user.inspection_schools.all %}
-        <li class="list-group-item">{{ school.name }}</li>
-      {% empty %}
-        <li class="list-group-item text-muted text-center">No schools assigned yet.</li>
-      {% endfor %}
-    </ul>
-  </div>
+      {% for school in assigned_schools %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>{{ school.name }}</div>
 
-  <div class="card">
-    <div class="card-header bg-light">My Upcoming Inspections</div>
-    <ul class="list-group list-group-flush">
-      {% for inspection in user.inspections_as_inspector.all|slice:":5" %}
-        <li class="list-group-item">
-          {{ inspection.school.name }} — {{ inspection.date }}
-          <a href="{% url 'inspections:inspection_detail' inspection.id %}" class="btn btn-sm btn-outline-primary float-end">View</a>
+          <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'schools:school_detail' school.id %}" 
+               class="btn btn-sm btn-outline-primary">View</a>
+          </div>
         </li>
       {% empty %}
-        <li class="list-group-item text-muted text-center">No inspections scheduled.</li>
+        <li class="list-group-item text-center text-muted">You are not assigned to any schools.</li>
       {% endfor %}
     </ul>
   </div>
+
+  <!-- ===== RECENT INSPECTIONS ===== -->
+  <div class="card mb-4">
+    <div class="card-header bg-light">Recent Inspections</div>
+    <ul class="list-group list-group-flush">
+      {% for inspection in recent_inspections %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            {{ inspection.school.name }} — {{ inspection.date }}
+          </div>
+
+          <div class="d-flex align-items-center gap-3">
+            <span class="badge bg-secondary">{{ inspection.get_status_display }}</span>
+            <a href="{% url 'inspections:inspection_detail' inspection.pk %}" 
+               class="btn btn-sm btn-outline-primary">
+              View
+            </a>
+          </div>
+        </li>
+      {% empty %}
+        <li class="list-group-item text-center text-muted">No recent inspections performed.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- ===== CORRECTIVE ACTIONS CREATED BY ME ===== -->
+  <div class="card border-warning mb-4">
+    <div class="card-header bg-warning text-dark">Corrective Actions Created</div>
+    <div class="card-body">
+
+      <p>Total: <span class="badge bg-warning text-dark">{{ action_count }}</span></p>
+
+      <ul class="list-group list-group-flush">
+        {% for action in actions_created %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+
+            <!-- Left side -->
+            <div>
+              <strong>{{ action.inspection_item.checklist_item.text }}</strong><br>
+              <small>{{ action.inspection_item.inspection.school.name }}</small>
+            </div>
+
+            <!-- Right side (aligned!) -->
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge
+                {% if action.status == 'OPEN' %} bg-danger
+                {% elif action.status == 'IN_PROGRESS' %} bg-warning text-dark
+                {% elif action.status == 'RESOLVED' %} bg-success
+                {% endif %}
+              ">
+                {{ action.get_status_display }}
+              </span>
+
+              <a href="{% url 'inspections:corrective_action_detail' action.pk %}" 
+                 class="btn btn-sm btn-outline-warning">
+                View
+              </a>
+            </div>
+
+          </li>
+        {% empty %}
+          <li class="list-group-item text-center text-muted">No corrective actions created yet.</li>
+        {% endfor %}
+      </ul>
+
+      <a href="{% url 'inspections:corrective_action_list' %}" 
+         class="btn btn-sm btn-outline-warning mt-3">
+        View All Corrective Actions
+      </a>
+
+    </div>
+  </div>
+
 </div>
 {% endblock %}

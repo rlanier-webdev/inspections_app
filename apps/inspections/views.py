@@ -4,7 +4,7 @@ from django.core.exceptions import PermissionDenied
 from .forms import InspectionForm
 from apps.users.models import AppUser
 from django.core.paginator import Paginator
-from .models import Inspection, CorrectiveAction
+from .models import Inspection, CorrectiveAction, InspectionItem
 from apps.schools.models import School
 from .forms import InspectionItemFormSet
 
@@ -26,17 +26,20 @@ def inspection_create(request):
             managers = school.managers.all()
 
             if managers.exists():
-                inspection.manager = managers.first()  # or choose logic below
+                inspection.manager = managers.first()
             else:
-                inspection.manager = None  # no manager assigned to school
+                inspection.manager = None
 
-            # 2. Inspector is already selected in the form
             inspection.save()
 
-            # 3. Create inspection items for the selected checklist
+            # 2. Create inspection items with None=True by default
             if inspection.checklist:
-                for item in inspection.checklist.items.all():
-                    inspection.inspection_items.create(checklist_item=item)
+                for checklist_item in inspection.checklist.items.all():
+                    InspectionItem.objects.create(
+                        inspection=inspection,
+                        checklist_item=checklist_item,
+                        passed=None,  # <-- Now allowed
+                    )
 
             return redirect("inspections:inspection_detail", pk=inspection.pk)
 
@@ -44,7 +47,6 @@ def inspection_create(request):
         form = InspectionForm(user=user)
 
     return render(request, "inspections/inspection_create.html", {"form": form})
-
 
 
 @login_required
@@ -130,47 +132,101 @@ def inspection_perform(request, pk):
         pk=pk
     )
 
-    # Permission: only assigned inspector or admin can perform
-    if request.user.appuser.role not in (AppUser.Role.ADMIN, AppUser.Role.INSPECTOR):
+    user = request.user.appuser
+
+    # -------------------------------------------------
+    # 1. PERMISSIONS
+    # -------------------------------------------------
+    if user.role not in (AppUser.Role.ADMIN, AppUser.Role.INSPECTOR):
         raise PermissionDenied("You do not have permission to perform this inspection.")
 
-    # If inspector, must be the assigned one
-    if request.user.appuser.role == AppUser.Role.INSPECTOR:
-        if inspection.inspector != request.user.appuser:
-            raise PermissionDenied("This inspection is not assigned to you.")
+    if user.role == AppUser.Role.INSPECTOR and inspection.inspector != user:
+        raise PermissionDenied("This inspection is not assigned to you.")
 
-    # If inspection already completed, display read-only
+    # -------------------------------------------------
+    # 2. REINSPECTION MODE? (Only show one item)
+    # -------------------------------------------------
+    action_id = request.GET.get("action")  # ex: ...perform/5/?action=12
+
+    if action_id:
+        # Only list the one item tied to corrective action
+        inspection_items_qs = inspection.inspection_items.filter(
+            corrective_actions__pk=action_id
+        )
+    else:
+        # Normal inspection: all items
+        inspection_items_qs = inspection.inspection_items.all()
+
+    # Completed inspection normally = read-only
     is_completed = inspection.status in (
-        inspection.Status.PASSED,
-        inspection.Status.FAILED,
-        inspection.Status.COMPLETED
+        Inspection.Status.PASSED,
+        Inspection.Status.FAILED,
+        Inspection.Status.COMPLETED,
     )
 
-    ItemFormSet = InspectionItemFormSet(
-        queryset=inspection.inspection_items.all(),
-    )
+    # BUT if in reinspection mode, always allow edits
+    if action_id:
+        is_completed = False
 
+    ItemFormSet = InspectionItemFormSet(queryset=inspection_items_qs)
+
+    # -------------------------------------------------
+    # 3. PROCESS POST
+    # -------------------------------------------------
     if request.method == "POST":
-        formset = InspectionItemFormSet(request.POST, queryset=inspection.inspection_items.all())
+        formset = InspectionItemFormSet(request.POST, queryset=inspection_items_qs)
 
         if formset.is_valid():
-
-            # Save all items first
             formset.save()
 
-            # Determine status
+            # ---------------------------------------------
+            # REINSPECTION MODE LOGIC
+            # ---------------------------------------------
+            if action_id:
+                action = get_object_or_404(CorrectiveAction, pk=action_id)
+                item = action.inspection_item
+                item.refresh_from_db()
+
+                # Update the corrective action status
+                if item.passed:
+                    action.status = CorrectiveAction.Status.REINSPECTED
+                else:
+                    action.status = CorrectiveAction.Status.OPEN
+
+                action.save()
+
+                # Now evaluate the entire inspection
+                all_actions = CorrectiveAction.objects.filter(
+                    inspection_item__inspection=inspection
+                )
+
+                unresolved = all_actions.filter(
+                    status__in=[
+                        CorrectiveAction.Status.OPEN,
+                        CorrectiveAction.Status.IN_PROGRESS,
+                        CorrectiveAction.Status.AWAITING_REINSPECTION
+                    ]
+                )
+
+                inspection.status = (
+                    Inspection.Status.FAILED if unresolved.exists()
+                    else Inspection.Status.PASSED
+                )
+                inspection.save()
+
+                return redirect("inspections:inspection_detail", pk=inspection.pk)
+
+            # ---------------------------------------------
+            # STANDARD INSPECTION COMPLETION LOGIC
+            # ---------------------------------------------
             if "complete_inspection" in request.POST:
                 failed_items = inspection.inspection_items.filter(passed=False)
 
                 if failed_items.exists():
                     inspection.status = Inspection.Status.FAILED
+                    school = inspection.school
 
-                    # AUTO-CREATE CORRECTIVE ACTIONS
                     for item in failed_items:
-                        # Decide who gets assigned
-                        # Prefer Kitchen Staff → else Manager → else None
-                        school = inspection.school
-
                         assigned_user = (
                             school.kitchen_staff.first()
                             or school.managers.first()
@@ -180,14 +236,15 @@ def inspection_perform(request, pk):
                         CorrectiveAction.objects.create(
                             inspection_item=item,
                             assigned_to=assigned_user,
-                            description=f"Correct issue: {item.checklist_item.text}"
+                            description=f"Correct issue: {item.checklist_item.text}",
+                            status=CorrectiveAction.Status.OPEN
                         )
 
                 else:
                     inspection.status = Inspection.Status.PASSED
 
             else:
-                inspection.status = Inspection.Status.PENDING  # Save as draft
+                inspection.status = Inspection.Status.PENDING  # draft save
 
             inspection.save()
 
@@ -196,31 +253,48 @@ def inspection_perform(request, pk):
     else:
         formset = ItemFormSet
 
+    # -------------------------------------------------
+    # 4. RENDER PAGE
+    # -------------------------------------------------
     return render(request, "inspections/inspection_perform.html", {
         "inspection": inspection,
         "formset": formset,
         "is_completed": is_completed,
+        "action_id": action_id,
     })
 
 
+
+
 @login_required
-def corrective_action_list(request):
+def corrective_action_list(request, inspection_id=None):
     user = request.user.appuser
 
+    # === CASE 1: FILTER BY INSPECTION ID FIRST ===
+    if inspection_id:
+        # Always restrict actions to only this inspection,
+        # then apply role filters on top of that
+        base_actions = CorrectiveAction.objects.filter(
+            inspection_item__inspection_id=inspection_id
+        )
+    else:
+        base_actions = CorrectiveAction.objects.all()
+
+    # === ROLE FILTERING ===
     if user.role == AppUser.Role.ADMIN:
-        actions = CorrectiveAction.objects.all()
+        actions = base_actions
 
     elif user.role == AppUser.Role.MANAGER:
-        actions = CorrectiveAction.objects.filter(
-            assigned_to__in=request.user.appuser.managed_schools.values_list("kitchen_staff", flat=True)
-        ) | CorrectiveAction.objects.filter(assigned_to=user)
+        managed_users = request.user.appuser.managed_schools.values_list("kitchen_staff", flat=True)
+        actions = base_actions.filter(
+            assigned_to__in=managed_users
+        ) | base_actions.filter(assigned_to=user)
 
     elif user.role == AppUser.Role.KITCHEN:
-        actions = CorrectiveAction.objects.filter(assigned_to=user)
+        actions = base_actions.filter(assigned_to=user)
 
     elif user.role == AppUser.Role.INSPECTOR:
-        # Inspectors only see actions for their inspections
-        actions = CorrectiveAction.objects.filter(
+        actions = base_actions.filter(
             inspection_item__inspection__inspector=user
         )
 
@@ -229,38 +303,97 @@ def corrective_action_list(request):
 
     return render(request, "inspections/corrective_action_list.html", {
         "actions": actions,
+        "inspection_id": inspection_id,
     })
 
 
+
+@login_required
 @login_required
 def corrective_action_detail(request, pk):
     action = get_object_or_404(CorrectiveAction, pk=pk)
 
-    # --- PERMISSIONS ---
-    if request.user.is_superuser:
-        allowed = True
-    else:
-        try:
-            user_profile = request.user.appuser
-        except AppUser.DoesNotExist:
-            raise PermissionDenied("You do not have an AppUser profile.")
+    # Always try to fetch AppUser profile
+    try:
+        user_profile = request.user.appuser
+    except AppUser.DoesNotExist:
+        user_profile = None
 
-        allowed = (
-            user_profile.role == AppUser.Role.ADMIN or
-            user_profile.role == AppUser.Role.MANAGER or
-            user_profile == action.assigned_to
-        )
+    # PERMISSIONS
+
+    is_superuser = request.user.is_superuser
+    is_admin = user_profile and user_profile.role == AppUser.Role.ADMIN
+    is_manager = user_profile and user_profile.role == AppUser.Role.MANAGER
+    is_assigned = user_profile and user_profile == action.assigned_to
+
+    # Allowed users
+    allowed = is_superuser or is_admin or is_manager or is_assigned
 
     if not allowed:
-        raise PermissionDenied("You do not have permission to view this action.")
+        raise PermissionDenied("You do not have permission to view this corrective action.")
 
-    # --- HANDLE POST ---
+    # PROCESS RESOLUTION
     if request.method == "POST":
         action.status = CorrectiveAction.Status.RESOLVED
         action.save()
         return redirect("inspections:corrective_action_list")
 
-    # --- RENDER ---
     return render(request, "inspections/corrective_action_detail.html", {
         "action": action,
     })
+
+
+
+@login_required
+def corrective_action_assign(request, pk):
+    action = get_object_or_404(CorrectiveAction, pk=pk)
+
+    # Permissions: Admin & Manager only
+    user = request.user.appuser
+    if request.user.is_superuser:
+        pass
+    elif user.role not in (AppUser.Role.ADMIN, AppUser.Role.MANAGER):
+        raise PermissionDenied("Only admins and managers can reassign corrective actions.")
+
+    if request.method == "POST":
+        new_assigned_id = request.POST.get("assigned_to")
+
+        if new_assigned_id:
+            try:
+                new_assigned_user = AppUser.objects.get(id=new_assigned_id)
+                action.assigned_to = new_assigned_user
+                action.save()
+            except AppUser.DoesNotExist:
+                pass  # ignore invalid input, shouldn't happen
+
+        return redirect("inspections:corrective_action_list")
+
+
+@login_required
+def reinspect_action(request, pk):
+    action = get_object_or_404(CorrectiveAction, pk=pk)
+    user = request.user.appuser
+
+    # permissions
+    allowed = (
+        request.user.is_superuser or
+        user.role in [
+            AppUser.Role.ADMIN,
+            AppUser.Role.MANAGER,
+            AppUser.Role.INSPECTOR
+        ]
+    )
+    if not allowed:
+        raise PermissionDenied()
+
+    # Move corrective action to "awaiting reinspection"
+    action.status = CorrectiveAction.Status.AWAITING_REINSPECTION
+    action.save()
+
+    # Redirect to the inspection perform screen
+    # Pass a QUERY parameter so the view knows to show only this item
+    inspection = action.inspection_item.inspection
+    return redirect(
+        "inspections:inspection_perform",
+        pk=inspection.pk
+    )

@@ -1,46 +1,115 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>{% block title %}Inspections{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <!-- Custom Theme -->
+    <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+    <style>
+        body {
+            background-color: #f5f7fa;
+        }
+
+        .sidebar {
+            width: 240px;
+            background-color: var(--bs-primary);
+            min-height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+
+        .sidebar .nav-link {
+            color: #fff;
+            padding: 12px 20px;
+            font-size: 15px;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background-color: var(--bs-secondary);
+            color: #fff;
+        }
+
+        .main-content {
+            margin-left: 240px;
+            padding: 20px;
+        }
+
+        .topbar {
+            height: 60px;
+            background-color: var(--bs-primary);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+        }
+
+        .topbar a {
+            color: #fff;
+            text-decoration: none;
+        }
+    </style>
+
+    {% block head %}{% endblock %}
 </head>
+
 <body>
-<nav class="navbar navbar-expand-lg navbar-light bg-primary">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="#">Inspections App</a>
-        <div class="d-flex align-items-center">
-            <span class="me-3">Hello, {{ request.user.get_full_name }}</span>
-            <form method="post" action="{% url 'logout' %}" class="d-inline">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-danger">Logout</button>
-            </form>
 
-        </div>
-    </div>
-</nav>
+<!-- SIDEBAR -->
+<div class="sidebar d-flex flex-column py-3">
+    <h4 class="text-center text-white mb-4">Inspections</h4>
 
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-2 bg-light border-end vh-100">
-            <nav class="nav flex-column pt-3">
-                <a class="nav-link" href="{% url 'users:dashboard' %}">Dashboard</a>
-                <a class="nav-link" href="{% url 'inspections:inspection_list' %}">Inspections</a>
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'inspections:corrective_action_list' %}">
-                        Corrective Actions
-                    </a>
-                </li>
+    <nav class="nav flex-column">
+        <a href="{% url 'users:dashboard' %}" class="nav-link {% if request.path == '/users/dashboard/' %}active{% endif %}">
+            <i class="bi bi-speedometer2 me-2"></i> Dashboard
+        </a>
 
-                <!-- Add other links here -->
-            </nav>
-        </div>
-        <div class="col-md-10 pt-3">
-            {% block content %}{% endblock %}
-        </div>
-    </div>
+        <a href="{% url 'inspections:inspection_list' %}" class="nav-link {% if '/inspections' in request.path %}active{% endif %}">
+            <i class="bi bi-clipboard-check me-2"></i> Inspections
+        </a>
+
+        <a href="{% url 'inspections:corrective_action_list' %}" class="nav-link {% if '/actions' in request.path %}active{% endif %}">
+            <i class="bi bi-exclamation-triangle me-2"></i> Corrective Actions
+        </a>
+
+ {% comment %}        <a href="{% url 'schools:school_list' %}" class="nav-link {% if '/schools' in request.path %}active{% endif %}">
+            <i class="bi bi-building me-2"></i> Schools
+        </a>
+
+        <a href="{% url 'users:profile' %}" class="nav-link {% if '/profile' in request.path %}active{% endif %}">
+            <i class="bi bi-person-circle me-2"></i> Profile
+        </a> {% endcomment %}
+    </nav>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- TOP HEADER -->
+<div class="topbar">
+    <div>
+        <i class="bi bi-grid-fill"></i>
+        <span class="ms-2">{{ user.full_name }}</span>
+    </div>
+
+   <form method="post" action="{% url 'logout' %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Logout</button>
+    </form>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main-content">
+    {% block content %}
+    {% endblock %}
+</div>
+
 </body>
 </html>

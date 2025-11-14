@@ -1,0 +1,112 @@
+/* ===========================================
+   Theme: Custom Bootstrap Color Overrides
+   =========================================== */
+
+:root {
+    /* Light / Dark */
+    --bs-light: #d5e9f5;
+    --bs-dark: #010508;
+
+    /* Core Theme Colors */
+    --bs-primary: #004575;
+    --bs-primary-rgb: 0, 69, 117;
+
+    --bs-secondary: #4c6a91;
+    --bs-secondary-rgb: 76, 106, 145;
+
+    --bs-info: #f9d34e;
+    --bs-info-rgb: 249, 211, 78;
+
+    --bs-success: #00ad60;
+    --bs-success-rgb: 0, 173, 96;
+
+    --bs-warning: #e7cd00;
+    --bs-warning-rgb: 231, 205, 0;
+
+    --bs-danger: #f80900;
+    --bs-danger-rgb: 248, 9, 0;
+
+    /* Base white */
+    --bs-white: #ffffff;
+}
+
+/* ===========================================
+   Override Bootstrap Components
+   =========================================== */
+
+/* Primary Buttons */
+.btn-primary {
+    background-color: var(--bs-primary) !important;
+    border-color: var(--bs-primary) !important;
+}
+.btn-primary:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.85) !important;
+}
+
+/* Outline Primary Buttons */
+.btn-outline-primary {
+    color: var(--bs-primary) !important;
+    border-color: var(--bs-primary) !important;
+}
+.btn-outline-primary:hover {
+    background-color: var(--bs-primary) !important;
+    color: #fff !important;
+}
+
+/* Secondary Buttons */
+.btn-secondary {
+    background-color: var(--bs-secondary) !important;
+    border-color: var(--bs-secondary) !important;
+}
+.btn-secondary:hover {
+    background-color: rgba(var(--bs-secondary-rgb), 0.85) !important;
+}
+
+/* Links */
+a {
+    color: var(--bs-primary);
+}
+a:hover {
+    color: rgba(var(--bs-primary-rgb), 0.75);
+}
+
+/* Background Utilities */
+.bg-primary { background-color: var(--bs-primary) !important; }
+.bg-secondary { background-color: var(--bs-secondary) !important; }
+.bg-info { background-color: var(--bs-info) !important; }
+.bg-success { background-color: var(--bs-success) !important; }
+.bg-warning { background-color: var(--bs-warning) !important; }
+.bg-danger { background-color: var(--bs-danger) !important; }
+.bg-light { background-color: var(--bs-light) !important; }
+.bg-dark { background-color: var(--bs-dark) !important; }
+
+/* Text Utilities */
+.text-primary { color: var(--bs-primary) !important; }
+.text-secondary { color: var(--bs-secondary) !important; }
+.text-info { color: var(--bs-info) !important; }
+.text-success { color: var(--bs-success) !important; }
+.text-warning { color: var(--bs-warning) !important; }
+.text-danger { color: var(--bs-danger) !important; }
+.text-light { color: var(--bs-light) !important; }
+.text-dark { color: var(--bs-dark) !important; }
+
+/* Borders */
+.border-primary { border-color: var(--bs-primary) !important; }
+.border-secondary { border-color: var(--bs-secondary) !important; }
+.border-info { border-color: var(--bs-info) !important; }
+.border-success { border-color: var(--bs-success) !important; }
+.border-warning { border-color: var(--bs-warning) !important; }
+.border-danger { border-color: var(--bs-danger) !important; }
+.border-light { border-color: var(--bs-light) !important; }
+.border-dark { border-color: var(--bs-dark) !important; }
+
+/* Navbars */
+.navbar-dark .navbar-nav .nav-link.active,
+.navbar-dark .navbar-nav .nav-link:hover {
+    color: var(--bs-info) !important;
+}
+
+.navbar-light .navbar-nav .nav-link.active,
+.navbar-light .navbar-nav .nav-link:hover {
+    color: var(--bs-primary) !important;
+}

@@ -3,9 +3,16 @@
 
 {% block content %}
 <div class="container-fluid">
+
     <h1 class="mb-4">
         Perform Inspection – {{ inspection.school.name }}
     </h1>
+
+    {% if action_id %}
+        <div class="alert alert-warning">
+            <strong>Reinspection Mode:</strong> You are reinspecting a corrective action item.
+        </div>
+    {% endif %}
 
     {% if is_completed %}
         <div class="alert alert-info">
@@ -13,7 +20,10 @@
         </div>
     {% endif %}
 
-    <form method="post">
+    <!-- FORM -->
+    <form method="post"
+          action="{% url 'inspections:inspection_perform' inspection.pk %}{% if action_id %}?action={{ action_id }}{% endif %}">
+        
         {% csrf_token %}
         {{ formset.management_form }}
 
@@ -27,27 +37,35 @@
             </thead>
 
             <tbody>
-
                 {% for form in formset %}
                 <tr>
                     <td>{{ form.instance.checklist_item.text }}</td>
-                    
+
                     <td class="text-center">
                         {{ form.passed }}
                     </td>
-                    
+
                     <td>
                         {{ form.notes }}
                     </td>
 
-                    {{ form.id }}  <!-- required for formset -->
+                    {{ form.id }}
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
+        <!-- BUTTONS -->
         {% if not is_completed %}
-            <div class="mt-4">
+
+            {% if action_id %}
+                <!-- Reinspection Button -->
+                <button type="submit" class="btn btn-success">
+                    Submit Reinspection
+                </button>
+
+            {% else %}
+                <!-- Normal Inspection Buttons -->
                 <button type="submit" name="save_draft" class="btn btn-secondary">
                     Save as Draft
                 </button>
@@ -55,15 +73,18 @@
                 <button type="submit" name="complete_inspection" class="btn btn-primary ms-2">
                     Complete Inspection
                 </button>
+            {% endif %}
 
-                <a href="{% url 'inspections:inspection_detail' inspection.pk %}"
-                   class="btn btn-outline-dark ms-2">
-                    Cancel
-                </a>
-            </div>
+            <a href="{% url 'inspections:inspection_detail' inspection.pk %}"
+               class="btn btn-outline-dark ms-2">
+                Cancel
+            </a>
+
         {% else %}
             <a href="{% url 'inspections:inspection_detail' inspection.pk %}"
-               class="btn btn-primary">Back to Inspection</a>
+               class="btn btn-primary">
+                Back to Inspection
+            </a>
         {% endif %}
     </form>
 </div>

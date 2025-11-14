@@ -2,35 +2,82 @@
 {% block title %}Corrective Actions{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">Corrective Actions</h1>
+<div class="container-fluid">
+    <h1 class="mb-4">Corrective Actions</h1>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Inspection Item</th>
-            <th>Assigned To</th>
-            <th>Status</th>
-            <th>Created</th>
-            <th></th>
-        </tr>
-    </thead>
+    <div class="card">
+        <div class="card-header bg-light">
+            <strong>All Corrective Actions</strong>
+        </div>
 
-    <tbody>
-    {% for action in actions %}
-        <tr>
-            <td>{{ action.inspection_item.checklist_item.text }}</td>
-            <td>{{ action.assigned_to.full_name }}</td>
-            <td>{{ action.get_status_display }}</td>
-            <td>{{ action.created_at }}</td>
-            <td>
-                <a href="{% url 'inspections:corrective_action_detail' action.pk %}" class="btn btn-sm btn-primary">
-                    View
-                </a>
-            </td>
-        </tr>
-    {% empty %}
-        <tr><td colspan="5" class="text-center text-muted">No corrective actions found.</td></tr>
-    {% endfor %}
-    </tbody>
-</table>
+        <ul class="list-group list-group-flush">
+
+            {% for action in actions %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+
+                <!-- LEFT SIDE: Action Details -->
+                <div>
+                    <strong>{{ action.inspection_item.checklist_item.text }}</strong><br>
+
+                    <!-- School & Item -->
+                    <small class="text-muted">
+                        {{ action.inspection_item.inspection.school.name }}
+                        — {{ action.inspection_item.inspection.date }}
+                    </small>
+                    <br>
+
+                    <!-- Status Badge -->
+                    {% if action.status == "OPEN" %}
+                        <span class="badge bg-danger">Open</span>
+                    {% elif action.status == "IN_PROGRESS" %}
+                        <span class="badge bg-warning text-dark">In Progress</span>
+                    {% elif action.status == "AWAITING_REINSPECTION" %}
+                        <span class="badge bg-info text-dark">Awaiting Reinspection</span>
+                    {% elif action.status == "RESOLVED" %}
+                        <span class="badge bg-secondary">Resolved</span>
+                    {% elif action.status == "REINSPECTED" %}
+                        <span class="badge bg-success">Reinspected</span>
+                    {% endif %}
+
+                    <!-- Assigned To -->
+                    <small class="ms-3">
+                        <strong>Assigned to:</strong>
+                        {{ action.assigned_to.full_name|default:"Unassigned" }}
+                    </small>
+                </div>
+
+                <!-- RIGHT SIDE: Buttons -->
+                <div class="text-end">
+
+                    <!-- View Action -->
+                    <a href="{% url 'inspections:corrective_action_detail' action.pk %}"
+                       class="btn btn-sm btn-outline-primary mb-1">
+                        View Action
+                    </a>
+
+                    <!-- View Inspection -->
+                    <a href="{% url 'inspections:inspection_detail' action.inspection_item.inspection.pk %}"
+                       class="btn btn-sm btn-outline-secondary mb-1">
+                        View Inspection
+                    </a>
+
+                    <!-- Reinspect Button (only if needed) -->
+                    {% if action.status == "AWAITING_REINSPECTION" %}
+                        <a href="{% url 'inspections:inspection_perform' action.inspection_item.inspection.pk %}?action={{ action.pk }}"
+                           class="btn btn-sm btn-success">
+                            Reinspect
+                        </a>
+                    {% endif %}
+                </div>
+
+            </li>
+            {% empty %}
+                <li class="list-group-item text-center text-muted">
+                    No corrective actions found.
+                </li>
+            {% endfor %}
+
+        </ul>
+    </div>
+</div>
 {% endblock %}
