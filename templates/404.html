@@ -1,5 +1,5 @@
-{% load static %}
 {% extends request.user.is_authenticated|yesno:"base.html,base_guest.html" %}
+{% load static %}
 {% block title %}Page Not Found{% endblock %}
 
 {% block content %}
