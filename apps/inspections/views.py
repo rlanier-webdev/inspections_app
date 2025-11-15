@@ -7,6 +7,7 @@ from django.core.paginator import Paginator
 from .models import Inspection, CorrectiveAction, InspectionItem
 from apps.schools.models import School
 from .forms import InspectionItemFormSet
+from django.db import models
 
 
 @login_required
@@ -51,12 +52,34 @@ def inspection_create(request):
 
 @login_required
 def inspection_list(request):
-    inspections = Inspection.objects.select_related('school', 'inspector', 'manager', 'checklist')
+    user = request.user.appuser
+
+    inspections = Inspection.objects.select_related(
+        "school", "inspector", "manager", "checklist"
+    )
+
+    # Restrict kitchen user visibility
+    if user.role == AppUser.Role.KITCHEN:
+        inspections = inspections.filter(
+            school__in=user.kitchen_schools.all()
+        )
+
+    # Manager only sees their schools
+    elif user.role == AppUser.Role.MANAGER:
+        inspections = inspections.filter(
+            school__in=user.managed_schools.all()
+        )
+
+    # Inspector only sees their inspections
+    elif user.role == AppUser.Role.INSPECTOR:
+        inspections = inspections.filter(inspector=user)
+
+    # Admin sees all → no filter
 
     # Filters
-    school_id = request.GET.get('school')
-    status = request.GET.get('status')
-    date = request.GET.get('date')
+    school_id = request.GET.get("school")
+    status = request.GET.get("status")
+    date = request.GET.get("date")
 
     if school_id:
         inspections = inspections.filter(school_id=school_id)
@@ -66,13 +89,10 @@ def inspection_list(request):
         inspections = inspections.filter(date=date)
 
     # Sorting
-    sort_by = request.GET.get('sort', '-date')  # Default: newest first
-    valid_sort_fields = ['date', 'status', 'school__name', '-date', '-status', '-school__name']
-    if sort_by not in valid_sort_fields:
-        sort_by = '-date'
+    sort_by = request.GET.get("sort", "-date")
     inspections = inspections.order_by(sort_by)
 
-    # Determine current column and direction
+    # Current sort indicators
     if sort_by.startswith('-'):
         current_sort = sort_by[1:]
         sort_direction = 'desc'
@@ -80,68 +100,61 @@ def inspection_list(request):
         current_sort = sort_by
         sort_direction = 'asc'
 
-    # Pagination
-    paginator = Paginator(inspections, 20)  # 20 per page
-    
-    # If filters or sorting change, reset pagination to first page
-    query_params = request.GET.copy()
-    if any(k in query_params for k in ['school', 'status', 'date', 'sort']):
-        # User changed filters or sort — reset to first page
-        page_number = None
-    else:
-        page_number = request.GET.get('page')
+    return render(request, 'inspections/inspection_list.html', {
+        "inspections": inspections,
+        "schools": School.objects.all(),
+        "selected_school": school_id,
+        "selected_status": status,
+        "selected_date": date,
+        "current_sort": current_sort,
+        "sort_direction": sort_direction,
+    })
 
-    page_obj = paginator.get_page(page_number)
-
-    # Compute sort prefix for pagination links
-    sort_prefix = '-' if sort_direction == 'desc' else ''
-
-    context = {
-        'page_obj': page_obj,
-        'inspections': page_obj.object_list,  # For your table
-        'schools': School.objects.all(),
-        'selected_school': school_id,
-        'selected_status': status,
-        'selected_date': date,
-        'current_sort': current_sort,
-        'sort_direction': sort_direction,
-        'sort_prefix': sort_prefix,
-    }
-
-    return render(request, 'inspections/inspection_list.html', context)
 
 
 @login_required
 def inspection_detail(request, pk):
     inspection = get_object_or_404(
-        Inspection.objects.select_related("school", "inspector", "manager", "checklist")
-        .prefetch_related("inspection_items__checklist_item"),
+        Inspection.objects.select_related(
+            "school", "inspector", "manager", "checklist"
+        ),
         pk=pk
     )
 
-    # Get corrective actions tied to this inspection
-    corrective_actions = CorrectiveAction.objects.filter(
-        inspection_item__inspection=inspection
-    ).select_related(
-        "inspection_item__checklist_item",
-        "assigned_to"
+    user = request.user.appuser
+
+    # Admin: full access
+    if user.role == AppUser.Role.ADMIN:
+        pass
+
+    # Manager: must manage this school
+    elif user.role == AppUser.Role.MANAGER:
+        if inspection.school not in user.managed_schools.all():
+            raise PermissionDenied()
+
+    # Inspector: must be assigned to this inspection
+    elif user.role == AppUser.Role.INSPECTOR:
+        if inspection.inspector != user:
+            raise PermissionDenied()
+
+    # Kitchen: must belong to this school
+    elif user.role == AppUser.Role.KITCHEN:
+        if inspection.school not in user.kitchen_schools.all():
+            raise PermissionDenied()
+
+    else:
+        raise PermissionDenied()
+
+    unresolved_actions = CorrectiveAction.objects.filter(
+        inspection_item__inspection=inspection,
+        status__in=["OPEN", "IN_PROGRESS", "AWAITING_REINSPECTION"]
     )
 
-    # Failed/unresolved CA’s for “Reinspect All” button
-    unresolved_actions = corrective_actions.filter(
-        status__in=[
-            CorrectiveAction.Status.OPEN,
-            CorrectiveAction.Status.IN_PROGRESS,
-            CorrectiveAction.Status.AWAITING_REINSPECTION,
-        ]
-    )
-
-    context = {
+    return render(request, "inspections/inspection_detail.html", {
         "inspection": inspection,
-        "corrective_actions": corrective_actions,
         "unresolved_actions": unresolved_actions,
-    }
-    return render(request, "inspections/inspection_detail.html", context)
+    })
+
 
 
 
@@ -306,48 +319,43 @@ def inspection_perform(request, pk):
 
 
 @login_required
-def corrective_action_list(request, inspection_id=None):
+def corrective_action_list(request):
     user = request.user.appuser
 
-    # === CASE 1: FILTER BY INSPECTION ID FIRST ===
-    if inspection_id:
-        # Always restrict actions to only this inspection,
-        # then apply role filters on top of that
-        base_actions = CorrectiveAction.objects.filter(
-            inspection_item__inspection_id=inspection_id
-        )
-    else:
-        base_actions = CorrectiveAction.objects.all()
-
-    # === ROLE FILTERING ===
+    # ADMIN – sees all actions
     if user.role == AppUser.Role.ADMIN:
-        actions = base_actions
+        actions = CorrectiveAction.objects.all()
 
+    # MANAGER – actions in their schools OR assigned to them
     elif user.role == AppUser.Role.MANAGER:
-        managed_users = request.user.appuser.managed_schools.values_list("kitchen_staff", flat=True)
-        actions = base_actions.filter(
-            assigned_to__in=managed_users
-        ) | base_actions.filter(assigned_to=user)
+        manager_schools = user.managed_schools.all()
+        actions = CorrectiveAction.objects.filter(
+            models.Q(assigned_to=user) |
+            models.Q(inspection_item__inspection__school__in=manager_schools)
+        ).distinct()
 
-    elif user.role == AppUser.Role.KITCHEN:
-        actions = base_actions.filter(assigned_to=user)
-
+    # INSPECTOR – actions from inspections they performed
     elif user.role == AppUser.Role.INSPECTOR:
-        actions = base_actions.filter(
+        actions = CorrectiveAction.objects.filter(
             inspection_item__inspection__inspector=user
         )
+
+    # KITCHEN – assigned to them OR tied to their schools
+    elif user.role == AppUser.Role.KITCHEN:
+        kitchen_schools = user.kitchen_schools.all()
+        actions = CorrectiveAction.objects.filter(
+            models.Q(assigned_to=user) |
+            models.Q(inspection_item__inspection__school__in=kitchen_schools)
+        ).distinct()
 
     else:
         actions = CorrectiveAction.objects.none()
 
     return render(request, "inspections/corrective_action_list.html", {
         "actions": actions,
-        "inspection_id": inspection_id,
     })
 
 
-
-@login_required
 @login_required
 def corrective_action_detail(request, pk):
     action = get_object_or_404(CorrectiveAction, pk=pk)
