@@ -4,119 +4,136 @@
 {% block content %}
 <div class="container-fluid">
 
-  <h1 class="mb-4">Welcome, {{ user.full_name }}</h1>
+    <h1 class="mb-4">Welcome, {{ user.full_name }}</h1>
 
-  <!-- ===== MY SCHOOLS ===== -->
-  <div class="card mb-4">
-      <div class="card-header bg-info text-white">My Schools</div>
-      <ul class="list-group list-group-flush">
-          {% for school in schools %}
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                  {{ school.name }}
+    <!-- =============================
+         ASSIGNED SCHOOLS
+    ============================== -->
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            My Assigned Schools
+        </div>
 
-                  <a href="{% url 'schools:school_detail' school.id %}"
-                     class="btn btn-sm btn-outline-primary">
-                      View
-                  </a>
-              </li>
-          {% empty %}
-              <li class="list-group-item text-center text-muted">
-                  You are not assigned to any schools.
-              </li>
-          {% endfor %}
-      </ul>
-  </div>
+        <ul class="list-group list-group-flush">
+            {% for school in schools %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>{{ school.name }}</div>
 
-  <!-- ===== RECENT INSPECTIONS ===== -->
-  <div class="card mb-4">
-      <div class="card-header bg-light">Recent Inspections</div>
-      <ul class="list-group list-group-flush">
+                    <a href="{% url 'schools:school_detail' school.id %}"
+                       class="btn btn-sm btn-outline-primary">
+                        View
+                    </a>
+                </li>
+            {% empty %}
+                <li class="list-group-item text-center text-muted">
+                    You are not assigned to any schools.
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
 
-          {% for inspection in recent_inspections %}
-              <li class="list-group-item d-flex justify-content-between align-items-center">
 
-                  <div>
-                      <strong>{{ inspection.school.name }}</strong><br>
-                      <small>{{ inspection.date }}</small>
-                  </div>
+    <!-- =============================
+         RECENT INSPECTIONS
+    ============================== -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            Recent Inspections
+        </div>
 
-                  <span class="badge 
-                      {% if inspection.status == 'PASSED' %} bg-success
-                      {% elif inspection.status == 'FAILED' %} bg-danger
-                      {% elif inspection.status == 'PENDING' %} bg-warning text-dark
-                      {% else %} bg-secondary
-                      {% endif %}
-                  ">
-                      {{ inspection.get_status_display }}
-                  </span>
+        <ul class="list-group list-group-flush">
+            {% for insp in recent_inspections %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
 
-                  <a href="{% url 'inspections:inspection_detail' inspection.pk %}"
-                     class="btn btn-sm btn-outline-primary ms-2">
-                      View
-                  </a>
-              </li>
-          {% empty %}
-              <li class="list-group-item text-center text-muted">
-                  No inspections for your assigned schools.
-              </li>
-          {% endfor %}
-      </ul>
-  </div>
+                <div>
+                    <strong>{{ insp.school.name }}</strong><br>
+                    <small>{{ insp.date }}</small>
+                </div>
 
-  <!-- ===== CORRECTIVE ACTIONS ===== -->
-  <div class="card border-warning mb-4">
-      <div class="card-header bg-warning text-dark">
-          Your Corrective Actions
-      </div>
+                <div class="d-flex align-items-center gap-2">
 
-      <div class="card-body">
-          <p>
-              Total: <span class="badge bg-warning text-dark">{{ action_count }}</span>
-          </p>
+                    <span class="badge
+                        {% if insp.status == 'PASSED' %} bg-success
+                        {% elif insp.status == 'FAILED' %} bg-danger
+                        {% elif insp.status == 'PENDING' %} bg-warning text-dark
+                        {% else %} bg-secondary
+                        {% endif %}
+                    ">
+                        {{ insp.get_status_display }}
+                    </span>
 
-          <ul class="list-group list-group-flush">
-              {% for action in actions %}
-                  <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <a href="{% url 'inspections:inspection_detail' insp.pk %}"
+                       class="btn btn-sm btn-outline-primary">
+                        View
+                    </a>
 
-                      <div class="flex-grow-1">
-                          <strong>{{ action.inspection_item.checklist_item.text }}</strong><br>
-                          <small>{{ action.inspection_item.inspection.school.name }}</small>
+                </div>
 
-                          <br>
+            </li>
+            {% empty %}
+                <li class="list-group-item text-center text-muted">
+                    No inspections available for your assigned schools.
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
 
-                          <!-- STATUS BADGE -->
-                          <span class="badge
-                              {% if action.status == 'OPEN' %} bg-danger
-                              {% elif action.status == 'IN_PROGRESS' %} bg-warning text-dark
-                              {% elif action.status == 'AWAITING_REINSPECTION' %} bg-info text-dark
-                              {% elif action.status == 'REINSPECTED' %} bg-success
-                              {% endif %}
-                              mt-1
-                          ">
-                              {{ action.get_status_display }}
-                          </span>
-                      </div>
 
-                      <div class="text-end">
-                          <a href="{% url 'inspections:corrective_action_detail' action.pk %}"
-                             class="btn btn-sm btn-outline-warning">
-                              View
-                          </a>
-                      </div>
-                  </li>
-              {% empty %}
-                  <li class="list-group-item text-center text-muted">
-                      No corrective actions assigned to you.
-                  </li>
-              {% endfor %}
-          </ul>
+    <!-- =============================
+         CORRECTIVE ACTIONS
+    ============================== -->
+    <div class="card border-warning mb-4">
+        <div class="card-header bg-warning text-dark">
+            Corrective Actions for Your Schools
+        </div>
 
-          <a href="{% url 'inspections:corrective_action_list' %}"
-             class="btn btn-sm btn-outline-warning mt-3">
-              View All Corrective Actions
-          </a>
-      </div>
-  </div>
+        <div class="card-body">
+            <p class="mb-2">
+                Total: <span class="badge bg-warning text-dark">{{ action_count }}</span>
+            </p>
+
+            <ul class="list-group list-group-flush">
+                {% for action in actions %}
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+
+                    <div class="flex-grow-1">
+                        <strong>{{ action.inspection_item.checklist_item.text }}</strong><br>
+                        <small>{{ action.inspection_item.inspection.school.name }}</small><br>
+
+                        <!-- STATUS BADGE -->
+                        <span class="badge
+                            {% if action.status == 'OPEN' %} bg-danger
+                            {% elif action.status == 'IN_PROGRESS' %} bg-warning text-dark
+                            {% elif action.status == 'AWAITING_REINSPECTION' %} bg-info text-dark
+                            {% elif action.status == 'REINSPECTED' %} bg-success
+                            {% endif %}
+                            mt-1
+                        ">
+                            {{ action.get_status_display }}
+                        </span>
+                    </div>
+
+                    <div class="text-end">
+                        <a href="{% url 'inspections:corrective_action_detail' action.pk %}"
+                           class="btn btn-sm btn-outline-warning">
+                           View
+                        </a>
+                    </div>
+
+                </li>
+                {% empty %}
+                    <li class="list-group-item text-center text-muted">
+                        No corrective actions for your assigned schools.
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <a href="{% url 'inspections:corrective_action_list' %}"
+               class="btn btn-sm btn-outline-warning mt-3">
+                View All Corrective Actions
+            </a>
+        </div>
+    </div>
 
 </div>
 {% endblock %}

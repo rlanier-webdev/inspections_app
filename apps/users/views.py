@@ -123,7 +123,7 @@ def dashboard(request):
 
     # ========== KITCHEN STAFF DASHBOARD ==========
     else:
-        # All schools the kitchen user is assigned to
+        # Schools they belong to
         kitchen_schools = user.kitchen_schools.all()
 
         # Inspections for those schools
@@ -131,14 +131,11 @@ def dashboard(request):
             school__in=kitchen_schools
         ).order_by("-date")[:5]
 
-        # Corrective actions:
-        # - assigned TO them OR
-        # - linked to inspections from their assigned schools
+        # Strict corrective action filtering: ONLY actions tied to their schools
         actions = CorrectiveAction.objects.filter(
-            models.Q(assigned_to=user) |
-            models.Q(inspection_item__inspection__school__in=kitchen_schools)
+            inspection_item__inspection__school__in=kitchen_schools
         ).select_related(
-                        "inspection_item__inspection__school",
+            "inspection_item__inspection__school",
             "inspection_item__checklist_item"
         ).distinct()
 
@@ -149,6 +146,6 @@ def dashboard(request):
             "action_count": actions.count(),
         })
 
-        template = "users/kitchen_dashboard.html"   
+        template = "users/kitchen_dashboard.html"
 
     return render(request, template, context)

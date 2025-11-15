@@ -344,8 +344,7 @@ def corrective_action_list(request):
     elif user.role == AppUser.Role.KITCHEN:
         kitchen_schools = user.kitchen_schools.all()
         actions = CorrectiveAction.objects.filter(
-            models.Q(assigned_to=user) |
-            models.Q(inspection_item__inspection__school__in=kitchen_schools)
+            inspection_item__inspection__school__in=kitchen_schools
         ).distinct()
 
     else:

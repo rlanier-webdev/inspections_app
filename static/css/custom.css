@@ -110,3 +110,9 @@ a:hover {
 .navbar-light .navbar-nav .nav-link:hover {
     color: var(--bs-primary) !important;
 }
+/* Badge Text Color Fix */
+.badge.bg-danger { color: #fff !important; }
+.badge.bg-success { color: #fff !important; }
+.badge.bg-info { color: #000 !important; }
+.badge.bg-warning { color: #000 !important; }
+.badge.bg-secondary { color: #fff !important; }
