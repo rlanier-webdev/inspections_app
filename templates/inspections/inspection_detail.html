@@ -56,12 +56,13 @@
     {% endif %}
 
     <!-- Reinspect All Button -->
-    {% if unresolved_actions %}
+    {% if unresolved_actions and can_reinspect_all %}
         <a href="{% url 'inspections:inspection_perform' inspection.pk %}?reinspect_all=1"
-           class="btn btn-success mb-3">
+        class="btn btn-success mb-3">
             Reinspect All Failed Items ({{ unresolved_actions.count }})
         </a>
     {% endif %}
+
 
     <!-- Checklist Items -->
     <div class="card">

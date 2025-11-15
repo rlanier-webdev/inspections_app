@@ -150,9 +150,13 @@ def inspection_detail(request, pk):
         status__in=["OPEN", "IN_PROGRESS", "AWAITING_REINSPECTION"]
     )
 
+    can_reinspect_all = user.role in [AppUser.Role.ADMIN, AppUser.Role.INSPECTOR]
+
+
     return render(request, "inspections/inspection_detail.html", {
         "inspection": inspection,
         "unresolved_actions": unresolved_actions,
+        "can_reinspect_all": can_reinspect_all,
     })
 
 
